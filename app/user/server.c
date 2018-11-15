@@ -168,7 +168,6 @@ bool ICACHE_FLASH_ATTR parse_url(char *precv, urlFrame *p_urlFrame){
 }
 
 void ICACHE_FLASH_ATTR server_recv(void *arg, char *pdata, unsigned short len){
-	os_printf("server_recv-TEST:receive data from PC: %s\r\n", pdata);
 	char index2[4096];
 	urlFrame *pUrlFrame;
 	char *pParseBuffer = NULL;

@@ -5,53 +5,59 @@
  *      Author: fanci
  */
 #include "user_main.h"
+#include "smartconfig.h"
 
+void ICACHE_FLASH_ATTR smartconfig_done(sc_status status, void *pdata){
+    switch(status) {
+        case SC_STATUS_WAIT:
+            os_printf("SC_STATUS_WAIT\n");
+            break;
+        case SC_STATUS_FIND_CHANNEL:
+            os_printf("SC_STATUS_FIND_CHANNEL\n");
+            break;
+        case SC_STATUS_GETTING_SSID_PSWD:
+            os_printf("SC_STATUS_GETTING_SSID_PSWD\n");
+			sc_type *type = pdata;
+            if (*type == SC_TYPE_ESPTOUCH) {
+                os_printf("SC_TYPE:SC_TYPE_ESPTOUCH\n");
+            } else {
+                os_printf("SC_TYPE:SC_TYPE_AIRKISS\n");
+            }
+            break;
+        case SC_STATUS_LINK:
+            os_printf("SC_STATUS_LINK\n");
+            struct station_config *sta_conf = pdata;
 
+	        wifi_station_set_config(sta_conf);
+	        wifi_station_disconnect();
+	        wifi_station_connect();
+	        struct ip_info info;
+	        wifi_get_ip_info(STATION_IF, &info);
+	        my_server_init(&info.ip, 80);
+            break;
+        case SC_STATUS_LINK_OVER:
+            os_printf("SC_STATUS_LINK_OVER\n");
+            if (pdata != NULL) {
+                uint8 phone_ip[4] = {0};
 
-void ICACHE_FLASH_ATTR Wifi_connect(void){
-	static uint8 count = 0;
-	os_timer_disarm(&connect_timer);
-	count++;
-	uint8 status = wifi_station_get_connect_status();
-	if(status == STATION_GOT_IP){
-		os_printf("Wifi connect success!");
-		struct ip_info info;
-		wifi_get_ip_info(STATION_IF, &info);
-		//my_station_init((struct ip_addr*)remote_ip, &info.ip, 1025);
-		my_server_init(&info.ip, 80);
-
-		return;
-	}
-	else{
-		if(count >= 7){
-			os_printf("Wifi connect fail!");
-			return;
-		}
-	}
-	os_timer_arm(&connect_timer,2000,NULL);
+                os_memcpy(phone_ip, (uint8*)pdata, 4);
+                os_printf("Phone ip: %d.%d.%d.%d\n",phone_ip[0],phone_ip[1],phone_ip[2],phone_ip[3]);
+            }
+            smartconfig_stop();
+            break;
+    }
 }
 
-void to_scan(void) {
-	struct station_config stationConf; 
-	//choose ap
-	//os_memcpy(&stationConf.ssid, "TP-LINK_B448", 32);
-	//os_memcpy(&stationConf.password, "meiyoumima233", 64);
-	os_memcpy(&stationConf.ssid, "serialTest-flasche", 32);
-	os_memcpy(&stationConf.password, "qwertyuiop", 64);
-	wifi_station_set_config(&stationConf);
-	wifi_station_connect();
-	os_timer_setfn(&connect_timer,Wifi_connect,NULL);
-	os_timer_arm(&connect_timer,2000,NULL);
+
+void ICACHE_FLASH_ATTR done_cb1(void){
+	wifi_station_disconnect();
+	smartconfig_start(smartconfig_done);
 }
 
 void user_init(){
 	uart_init(115200,115200);
-	wifi_set_opmode(0x03);
+	wifi_set_opmode(0x01);
 	RGB_light_init();
-	system_init_done_cb(to_scan);
+	system_init_done_cb(done_cb1);
 }
 void user_rf_pre_init(){}
-
-
-
-
